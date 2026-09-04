@@ -1,1 +1,609 @@
-hej
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <!-- Niezbędne dla poprawnego widoku mobilnego -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Quiz dla Kamili</title>
+    
+    <!-- Biblioteki -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <!-- Nowoczesne, minimalistyczne czcionki (Inter dla czytelności, Poppins dla nagłówków) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --app-bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --primary: #ec4899; /* Różowy akcent */
+            --correct: #10b981; /* Zielony szmaragdowy */
+            --wrong: #ef4444;   /* Czerwony pastelowy */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #e2e8f0; /* Tło poza telefonem na desktopie */
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        h1, h2, h3, .font-title {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .mobile-app {
+            width: 100%;
+            height: 100vh;
+            background-color: var(--app-bg);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Na większych ekranach aplikacja wygląda jak telefon */
+        @media (min-width: 480px) {
+            .mobile-app {
+                width: 400px;
+                height: 850px;
+                max-height: 90vh;
+                border-radius: 40px;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 10px #ffffff;
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        .slide-up {
+            opacity: 0;
+            transform: translateY(20px);
+            animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .option-btn {
+            background-color: var(--card-bg);
+            border: 2px solid #f1f5f9;
+            border-radius: 20px;
+            padding: 16px 20px;
+            color: var(--text-main);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            width: 100%;
+            text-align: left;
+            margin-bottom: 12px;
+        }
+
+        .option-btn:active {
+            transform: scale(0.97);
+        }
+
+        .option-btn.correct {
+            background-color: var(--correct);
+            border-color: var(--correct);
+            color: white;
+            box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3);
+        }
+
+        .option-btn.wrong {
+            background-color: var(--wrong);
+            border-color: var(--wrong);
+            color: white;
+        }
+
+        .option-letter {
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            background-color: #f1f5f9;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .option-btn.correct .option-letter, 
+        .option-btn.wrong .option-letter {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .elegant-rainbow {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(120deg, rgba(255,107,107,0.9), rgba(254,202,87,0.9), rgba(29,209,161,0.9), rgba(72,219,251,0.9), rgba(131,149,167,0.9));
+            background-size: 300% 300%;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+
+        .elegant-rainbow.active {
+            opacity: 1;
+            animation: rainbowFlow 2s ease infinite;
+        }
+
+        @keyframes rainbowFlow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Pasek postępu */
+        .progress-container {
+            width: 100%;
+            height: 6px;
+            background-color: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #ec4899, #8b5cf6);
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Rozmyty kleks w tle dla nowoczesnego wyglądu (Glassmorphism hint) */
+        .bg-blob {
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(236,72,153,0.15) 0%, rgba(255,255,255,0) 70%);
+            border-radius: 50%;
+            top: -100px;
+            right: -100px;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Scrollbar dla długich odpowiedzi, ukryty ale działający */
+        .content-scroll {
+            overflow-y: auto;
+            scrollbar-width: none; /* Firefox */
+        }
+        .content-scroll::-webkit-scrollbar {
+            display: none; /* Chrome/Safari */
+        }
+
+        /* Nowe style dla dedykowanych animacji (reakcji) */
+        #reaction-screen {
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(8px);
+        }
+        #reaction-screen.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        #reaction-content {
+            transform: scale(0.8) translateY(20px);
+            opacity: 0;
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        #reaction-screen.active #reaction-content {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+        }
+        @keyframes floatEmoji {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(5deg); }
+        }
+        .animate-float-emoji {
+            animation: floatEmoji 2.5s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+
+<div class="mobile-app shadow-2xl" id="app">
+    
+    <div class="bg-blob"></div>
+
+    <!-- EKRAN STARTOWY -->
+    <div id="start-screen" class="absolute inset-0 flex flex-col justify-center items-center p-8 z-10 fade-in bg-slate-50/80 backdrop-blur-sm">
+        <div class="w-24 h-24 bg-white rounded-3xl shadow-xl flex items-center justify-center mb-8 transform rotate-3">
+            <i class="fa-solid fa-heart text-4xl text-pink-500"></i>
+        </div>
+        
+        <h1 class="text-3xl font-title text-slate-800 text-center leading-tight mb-3">
+            Quiz o mnie<br>dla <span class="text-pink-500">Kamili!</span>
+        </h1>
+        
+        <p class="text-slate-500 text-center mb-10 leading-relaxed">
+            Sprawdźmy, jak dobrze znasz swoją najlepszą przyjaciółkę. Gotowa na wyzwanie?
+        </p>
+        
+        <button onclick="startQuiz()" class="w-full bg-slate-800 text-white font-title py-4 rounded-2xl text-lg shadow-lg hover:bg-slate-700 active:scale-95 transition-all flex justify-center items-center gap-3">
+            Zaczynamy <i class="fa-solid fa-arrow-right"></i>
+        </button>
+    </div>
+
+    <!-- EKRAN QUIZU -->
+    <div id="quiz-screen" class="hidden absolute inset-0 flex-col z-10 bg-transparent">
+        
+        <!-- Header & Progress -->
+        <div class="px-6 pt-8 pb-4 bg-white/50 backdrop-blur-md shrink-0">
+            <div class="flex justify-between items-center mb-4">
+                <span class="text-sm font-semibold text-slate-500 tracking-wider uppercase" id="question-counter">Pytanie 1/9</span>
+                <div class="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center text-pink-500">
+                    <i class="fa-solid fa-star text-xs"></i>
+                </div>
+            </div>
+            <div class="progress-container">
+                <div id="progress-bar" class="progress-bar" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Question Content -->
+        <div class="flex-1 content-scroll px-6 pb-6 pt-4 flex flex-col">
+            
+            <div id="question-card" class="mb-8">
+                <div id="question-icon-container" class="w-14 h-14 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-6">
+                    <i id="question-icon" class="fa-solid fa-pizza-slice text-2xl text-slate-700"></i>
+                </div>
+                <h2 id="question-text" class="text-2xl font-title text-slate-800 leading-snug">
+                    Tutaj pojawi się pytanie?
+                </h2>
+            </div>
+
+            <div id="options-container" class="flex-1 flex flex-col justify-end pb-4">
+                <!-- Przyciski generowane przez JS -->
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- EKRAN WYNIKÓW -->
+    <div id="result-screen" class="hidden absolute inset-0 flex-col justify-center items-center p-8 z-10 bg-white">
+        <div class="w-32 h-32 mb-6">
+            <img src="https://api.dicebear.com/7.x/notionists/svg?seed=Kamila&backgroundColor=f8fafc" alt="Avatar" class="w-full h-full rounded-full border-4 border-slate-100 shadow-lg">
+        </div>
+        
+        <h2 class="text-3xl font-title text-slate-800 mb-2">Koniec Quizu!</h2>
+        <div class="text-5xl font-title text-pink-500 mb-6" id="score-text">0/9</div>
+        
+        <p id="result-message" class="text-slate-600 text-center mb-10 leading-relaxed text-lg bg-slate-50 p-6 rounded-3xl border border-slate-100"></p>
+        
+        <button onclick="location.reload()" class="w-full bg-pink-500 text-white font-title py-4 rounded-2xl text-lg shadow-[0_8px_20px_-6px_rgba(236,72,153,0.5)] hover:bg-pink-600 active:scale-95 transition-all">
+            Spróbuj ponownie
+        </button>
+    </div>
+
+    <!-- DEDYKOWANA ANIMACJA PO ODPOWIEDZI -->
+    <div id="reaction-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-center">
+        <div id="reaction-content" class="flex flex-col items-center bg-white/90 p-8 rounded-3xl shadow-2xl border border-slate-100 mx-6 text-center max-w-[85%]">
+            <div id="reaction-emoji" class="text-7xl mb-4 animate-float-emoji drop-shadow-md"></div>
+            <h3 id="reaction-title" class="text-2xl font-title mb-2"></h3>
+            <p id="reaction-subtitle" class="text-slate-600 font-medium leading-relaxed"></p>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const quizData = [
+        {
+            question: "Jakiej orientacji jestem?",
+            icon: "fa-venus-mars", 
+            options: ["Hetero", "Gej", "Lesbijka", "Pedał"],
+            correct: 3,
+            emoji: "🌈",
+            correctMsg: "Yaaasss! Oczywiście, że pedał! Tęcza wjeżdża!",
+            wrongMsg: "Serio?! Przecież wiesz, że odpowiedź to pedał! 🌈"
+        },
+        {
+            question: "Jakiej rzeczy lub zachowania najbardziej nie znoszę?",
+            icon: "fa-face-rolling-eyes",
+            options: ["Spóźnialstwa", "Zawiści", "Mlaskania przy jedzeniu", "Ciągłego kłamstwa"],
+            correct: 1,
+            emoji: "🐍",
+            correctMsg: "Dokładnie! Zawiść to najgorsze co może być.",
+            wrongMsg: "Nieee, najbardziej nienawidzę ludzkiej zawiści!"
+        },
+        {
+            question: "Moja absolutnie wymarzona destynacja na wakacje to:",
+            icon: "fa-plane-departure",
+            options: ["Malediwy", "Grecja", "Dubaj", "Paryż"],
+            correct: 1,
+            emoji: "🏛️",
+            correctMsg: "O tak! Słońce, feta i greckie wyspy! 🏖️",
+            wrongMsg: "Pudło! Tylko i wyłącznie Grecja!"
+        },
+        {
+            question: "Jaką potrawę mogłabym jeść do końca życia?",
+            icon: "fa-utensils",
+            options: ["Sushi", "Spaghetti bolognese", "Pizzę", "Kebab"],
+            correct: 1,
+            emoji: "🍝",
+            correctMsg: "Mniam! Makaron to życie! 🍅",
+            wrongMsg: "Co Ty gadasz! Tylko spaghetti bolognese!"
+        },
+        {
+            question: "Z jakiego powodu zazwyczaj się spóźniam?",
+            icon: "fa-stopwatch",
+            options: ["Zaspanie", "Korki na mieście", "Gubię klucze", "Wybieram outfit 2 godziny"],
+            correct: 0,
+            emoji: "😴",
+            correctMsg: "Niestety... łóżko zawsze mnie przyciąga. 🛏️",
+            wrongMsg: "Błąd! Najczęściej po prostu zaspypiam..."
+        },
+        {
+            question: "Jaka jest moja ukryta fobia?",
+            icon: "fa-link",
+            options: ["Strach przed pająkami", "Strach przed ciemnością", "Strach przed unieruchomieniem", "Strach przed klaunami"],
+            correct: 2,
+            emoji: "⛓️",
+            correctMsg: "Zgadza się! Aż mam dreszcze na samą myśl! 😱",
+            wrongMsg: "Nope. Najbardziej boję się unieruchomienia!"
+        },
+        {
+            question: "Mój ulubiony napój alkoholowy to:",
+            icon: "fa-martini-glass",
+            options: ["Wino", "Limoncello", "Piwo smakowe", "Pornstar martini"],
+            correct: 3,
+            emoji: "🍸",
+            correctMsg: "Tak jest! Klasa i smak! ✨",
+            wrongMsg: "Zła odpowiedź. Tylko Pornstar martini!"
+        },
+        {
+            question: "Mój najbardziej irytujący nawyk to:",
+            icon: "fa-cookie-bite",
+            options: ["Strzelanie palcami", "Napady objadania", "Głośne chrapanie", "Przerywanie innym"],
+            correct: 1,
+            emoji: "🍔",
+            correctMsg: "Przyznaję się bez bicia... lodówka moim przyjacielem. 🍟",
+            wrongMsg: "Haha nie! Chodzi o te moje napady objadania!"
+        },
+        {
+            question: "Jak ma na imię pierwszy chłopak, który mi się podobał?",
+            icon: "fa-heart",
+            options: ["Filip", "Kacper", "Paweł", "Damian"],
+            correct: 3,
+            emoji: "💖",
+            correctMsg: "Ach, te dawne czasy... Tak, to był Damian! 🥰",
+            wrongMsg: "Zła odpowiedź! To był Damian!"
+        }
+    ];
+
+    let currentQuestion = 0;
+    let score = 0;
+    let isAnswering = false;
+
+    const startScreen = document.getElementById('start-screen');
+    const quizScreen = document.getElementById('quiz-screen');
+    const resultScreen = document.getElementById('result-screen');
+    const questionText = document.getElementById('question-text');
+    const questionIcon = document.getElementById('question-icon');
+    const optionsContainer = document.getElementById('options-container');
+    const questionCounter = document.getElementById('question-counter');
+    const progressBar = document.getElementById('progress-bar');
+    const reactionScreen = document.getElementById('reaction-screen');
+
+    function startQuiz() {
+        startScreen.style.opacity = '0';
+        setTimeout(() => {
+            startScreen.classList.add('hidden');
+            quizScreen.classList.remove('hidden');
+            quizScreen.classList.add('flex');
+            loadQuestion();
+        }, 300);
+    }
+
+    function loadQuestion() {
+        isAnswering = false;
+        const q = quizData[currentQuestion];
+        
+        // Aktualizacja paska postępu
+        const progress = ((currentQuestion) / quizData.length) * 100;
+        progressBar.style.width = `${progress}%`;
+        questionCounter.textContent = `Pytanie ${currentQuestion + 1}/${quizData.length}`;
+
+        // Tekst i Ikona
+        questionText.textContent = q.question;
+        questionIcon.className = `fa-solid ${q.icon} text-2xl text-slate-700`;
+
+        // Animacja wejścia karty pytania
+        const questionCard = document.getElementById('question-card');
+        questionCard.classList.remove('slide-up');
+        void questionCard.offsetWidth; // reset animacji
+        questionCard.classList.add('slide-up');
+
+        // Generowanie opcji
+        optionsContainer.innerHTML = '';
+        const letters = ['A', 'B', 'C', 'D'];
+        
+        q.options.forEach((option, index) => {
+            const btn = document.createElement('button');
+            btn.className = `option-btn slide-up text-[15px] sm:text-base`;
+            
+            // Kaskadowe opóźnienie animacji (stagger)
+            btn.style.animationDelay = `${(index + 1) * 0.1}s`;
+            
+            btn.onclick = () => checkAnswer(index, btn);
+            
+            btn.innerHTML = `
+                <div class="option-letter">${letters[index]}</div>
+                <span class="font-medium flex-1">${option}</span>
+            `;
+            
+            optionsContainer.appendChild(btn);
+        });
+    }
+
+    function checkAnswer(selectedIndex, btnElement) {
+        if (isAnswering) return;
+        isAnswering = true;
+
+        const q = quizData[currentQuestion];
+        const correctIndex = q.correct;
+        const allButtons = optionsContainer.querySelectorAll('.option-btn');
+        const isCorrect = (selectedIndex === correctIndex);
+        
+        // Pokazywanie prawidłowych i nieprawidłowych odpowiedzi
+        allButtons.forEach((btn, i) => {
+            btn.style.animation = 'none'; // Zatrzymaj wejście
+            
+            // Kolorujemy to co kliknął gracz
+            if (i === selectedIndex) {
+                if (isCorrect) {
+                    btn.classList.add('correct');
+                } else {
+                    btn.classList.add('wrong');
+                }
+            }
+            
+            // Zawsze podświetl prawidłową odpowiedź (nawet jak ktoś kliknął źle)
+            if (i === correctIndex && !isCorrect) {
+                btn.classList.add('correct');
+                // Delikatne powiększenie i obwódka, by pokazać co było dobre
+                btn.style.boxShadow = "0 0 0 4px rgba(16, 185, 129, 0.3)";
+                btn.style.transform = "scale(1.02)";
+            }
+
+            // Przygaś opcje, które nie były ani wybrane, ani poprawne
+            if (i !== selectedIndex && i !== correctIndex) {
+                btn.style.opacity = '0.3';
+            }
+        });
+
+        // Punktacja i konfetti jeśli dobrze
+        if (isCorrect) {
+            score++;
+            confetti({
+                particleCount: 40,
+                spread: 50,
+                origin: { y: 0.6 },
+                colors: ['#10b981', '#34d399', '#ffffff'],
+                disableForReducedMotion: true
+            });
+        }
+
+        // Uruchomienie dedykowanej animacji z emoji po chwili
+        setTimeout(() => {
+            const reactionEmoji = document.getElementById('reaction-emoji');
+            const reactionTitle = document.getElementById('reaction-title');
+            const reactionSubtitle = document.getElementById('reaction-subtitle');
+
+            // Podstawiamy dane dopasowane do pytania
+            reactionEmoji.textContent = q.emoji;
+            reactionSubtitle.textContent = isCorrect ? q.correctMsg : q.wrongMsg;
+            
+            if (isCorrect) {
+                reactionTitle.textContent = "Dobrze! 💅";
+                reactionTitle.className = "text-3xl font-title mb-2 text-emerald-500";
+                reactionScreen.style.backgroundColor = "rgba(16, 185, 129, 0.15)";
+            } else {
+                reactionTitle.textContent = "Ojej! 🙈";
+                reactionTitle.className = "text-3xl font-title mb-2 text-rose-500";
+                reactionScreen.style.backgroundColor = "rgba(244, 63, 94, 0.15)";
+            }
+
+            // Pokazujemy animowany pop-up
+            reactionScreen.classList.add('active');
+
+            // Po 2.5 sekundy chowamy modal i przechodzimy dalej
+            setTimeout(() => {
+                reactionScreen.classList.remove('active');
+                
+                setTimeout(() => {
+                    currentQuestion++;
+                    if (currentQuestion < quizData.length) {
+                        loadQuestion();
+                    } else {
+                        showResults();
+                    }
+                }, 400); // Czas na zniknięcie modala
+                
+            }, 2500); 
+
+        }, 800); // Czekamy 0.8s żeby było widać podświetlone przyciski
+    }
+
+    function showResults() {
+        quizScreen.classList.add('hidden');
+        quizScreen.classList.remove('flex');
+        resultScreen.classList.remove('hidden');
+        resultScreen.classList.add('flex', 'fade-in');
+        
+        document.getElementById('score-text').textContent = `${score}/${quizData.length}`;
+        
+        const percentage = score / quizData.length;
+        const messageEl = document.getElementById('result-message');
+        
+        if (percentage === 1) {
+            messageEl.innerHTML = "<strong>100%!</strong> Znasz mnie absolutnie na wylot. Kamila, jesteś najlepsza! 💖";
+            fireworks();
+        } else if (percentage >= 0.7) {
+            messageEl.innerHTML = "<strong>Super wynik!</strong> Niewiele przede mną ukryjesz, to się nazywa prawdziwa przyjaźń! ✨";
+            fireworks();
+        } else if (percentage >= 0.4) {
+            messageEl.innerHTML = "Całkiem nieźle, ale chyba musimy umówić się na kawkę, żeby nadrobić plotki! ☕";
+        } else {
+            messageEl.innerHTML = "Ojjj... Chyba musisz mi postawić pizzę w ramach przeprosin za ten wynik! 🍕😅";
+        }
+    }
+
+    // Efekt konfetti na koniec
+    function fireworks() {
+        var duration = 3 * 1000;
+        var animationEnd = Date.now() + duration;
+        var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+        function randomInRange(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        var interval = setInterval(function() {
+            var timeLeft = animationEnd - Date.now();
+
+            if (timeLeft <= 0) {
+                return clearInterval(interval);
+            }
+
+            var particleCount = 50 * (timeLeft / duration);
+            confetti(Object.assign({}, defaults, { particleCount,
+                origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+            }));
+            confetti(Object.assign({}, defaults, { particleCount,
+                origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+            }));
+        }, 250);
+    }
+</script>
+
+</body>
+</html>
